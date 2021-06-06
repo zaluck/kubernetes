@@ -18,5 +18,9 @@
     - name: update apt cache directly (apt module not reliable)
       shell: 'apt-get update'
     - name: Install packages
-      apt: name = {{ item }} state=installed force=yes
-      with_items: "{{ PACKAGES }}"
+      apt: 
+        name: "{{ item }}"
+        state: latest
+        force: yes
+      with_items: 
+            - "{{ PACKAGES }}"

@@ -422,6 +422,151 @@ host_key_checking = False
 vagrant@n4:~$ ansible-playbook -i hosts playbook.yml
 ------------------
 
+Cоздание кластера
+----------------------------------
+Пришло время создать сам кластер. Инициализируем ведущий узел на первой ВМ, 
+затем настроим сеть и добавим остальные ВМ в качестве узлов.
+Инициализация ведущего узла. Сделаем n1 (192.168.77.10) ведущим узлом. 
+Работая с облаком, основанным на ВМ vagrant, нужно обязательно указать флаг 
+--apiserveradvertise-address:
+> vagrant ssh n1
+vagrant@n1:~$ sudo kubeadm init --apiserver-advertise-address 192.168.77.10
+
+В Kubernetes 1.10.1 это вызовет появление такого сообщения об ошибке:
+----------------------------------------------------------------------------
+[init] Using Kubernetes version: v1.10.1
+[init] Using Authorization modes: [Node RBAC]
+[preflight] Running pre-flight checks.
+[WARNING FileExisting-crictl]: crictl not found in system path
+[preflight] Some fatal errors occurred:
+[ERROR Swap]: running with swap on is not supported. Please disable swap
+[preflight] If you know what you are doing, you can make a check non-fatal with '--ignore-preflight-errors=...'
+----------------------------------------------------------------------------
+Дело в том, что по умолчанию не установлены инструменты из пакета cri-tools. 
+Здесь мы имеем дело с одним из передовых аспектов Kubernetes. Я создал до-
+полнительный раздел в файле playbook.yml, чтобы установить Go и cri-tools, 
+отключить раздел подкачки и исправить сетевые имена виртуальных машин 
+vagrant:
+---
+- hosts: all
+  become: true
+  strategy: free
+  tasks:
+    - name: Add the longsleep repo for recent golang version
+      apt_repository: repo='ppa:longsleep/golang-backports' state=present
+    - name: update apt cache directly (apt module not reliable)
+      shell: 'apt-get update'
+      args:
+        warn: False
+    - name: Install Go
+      apt: name=golang-go state=present force=yes
+    - name: Install crictl
+      shell: 'go get github.com/kubernetes-incubator/cri-tools/cmd/crictl'
+      become_user: vagrant
+    - name: Create symlink in /usr/local/bin for crictl
+      file:
+        src: /home/vagrant/go/bin/crictl
+        dest: /usr/local/bin/crictl
+        state: link
+    - name: Set hostname properly
+62  Глава 2  •  Создание кластеров Kubernetes
+      shell: "hostname n$((1 + $(ifconfig | grep 192.168 | awk '{print $2}' |
+      tail -c 2)))"
+    - name: Turn off swap
+      shell: 'swapoff -a'
+–
+Не забудьте повторно запустить этот файл на узле n4, чтобы обновить все ВМ 
+в кластере.
+Далее приводится часть вывода при успешном запуске Kubernetes:
+vagrant@n1:~$ sudo kubeadm init --apiserver-advertise-address 192.168.77.10
+[init] Using Kubernetes version: v1.10.1
+[init] Using Authorization modes: [Node RBAC]
+[certificates] Generated ca certificate and key.
+[certificates] Generated apiserver certificate and key.
+[certificates] Valid certificates and keys now exist in
+"/etc/kubernetes/pki"
+.
+.
+.
+[addons] Applied essential addon: kube-dns
+[addons] Applied essential addon: kube-proxy
+Your Kubernetes master has initialized successfully!
+Позже, при подключении к кластеру других узлов, вам нужно будет записать 
+куда больше информации. Чтобы начать применять кластер, запустите от имени 
+обычного пользователя следующие команды:
+vagrant@n1:~$ mkdir -p $HOME/.kube
+vagrant@n1:~$ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+vagrant@n1:~$ sudo chown $(id -u):$(id -g) $HOME/.kube/config
+Теперь, чтобы подключить к кластеру любое количество ВМ, на каждом из его 
+узлов достаточно выполнить от имени администратора лишь одну команду. Чтобы 
+ее получить, введите kubeadm init cmmand:sudo kubeadm join -token << token>> 
+--discovery-token-ca-cert-hash <<discvery token>> -skip-prflight-cheks.
+Настройка pod-сети
+Сеть — это важная составляющая кластера. Подам нужно как-то общаться друг 
+с другом. Для этого следует установить дополнение с поддержкой pod-сети. В ва-
+шем распоряжении есть несколько вариантов, однако они должны быть основаны 
+на CNI, так как этого требуют кластеры, сгенерированные с помощью команды 
+kubeadm. Я предпочитаю дополнение Weave Net, которое поддерживает ресурс 
+Network Policy, но вы можете выбрать нечто другое.
+Выполните в ведущей ВМ команду:
+vagrant@n1:~$ sudo sysctl net.bridge.bridge-nf-call-iptables=1
+net.bridge.bridge-nf-call-iptables = 1vagrant@n1:~$ kubectl apply -f
+"https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 |
+tr -d '\n')"
+Создание многоузлового кластера с помощью kubeadm  63
+Вы должны увидеть следующее:
+serviceaccount "weave-net" created
+clusterrole.rbac.authorization.k8s.io "weave-net" created
+clusterrolebinding.rbac.authorization.k8s.io "weave-net" created
+role.rbac.authorization.k8s.io "weave-net" created
+rolebinding.rbac.authorization.k8s.io "weave-net" created
+daemonset.extensions "weave-net" created
+Успешность выполнения можно проверить так:
+vagrant@n1:~$ kubectl get po --all-namespaces
+NAMESPACE NAME READY STATUS RESTARTS AGE
+kube-system etcd-n1 1/1 Running 0 2m
+kube-system kube-apiserver-n1 1/1 Running 0 2m
+kube-system kube-controller-manager-n1 1/1 Running 0 2m
+kube-system kube-dns-86f4d74b45-jqctg 3/3 Running 0 3m
+kube-system kube-proxy-l54s9 1/1 Running 0 3m
+kube-system kube-scheduler-n1 1/1 Running 0 2m
+kube-system weave-net-fl7wn 2/2 Running 0 31s
+Последним стоит под weave-net-fl7wn, который нам и нужен. Он был запущен 
+вместе с kube-dns, это означает, что все в порядке.
+Добавление рабочих узлов
+Теперь с помощью ранее полученного токена можно добавить в кластер рабочие 
+узлы. Выполните на каждом из узлов (не забудьте sudo) следующую команду, под-
+ставив токены, которые получили при инициализации Kubernetes на ведущем узле:
+sudo kubeadm join --token "token" --discovery-token-ca-cert-hash
+"discovery token" --ignore-preflight-errors=all
+На момент написания этой книги (с использованием Kubernetes 1.10) некото-
+рые предварительные проверки завершались неудачно, но это всего лишь ложные 
+срабатывания. На самом деле все в порядке. Можете их пропустить, установив флаг 
+--ignore-preflight-errors=all. Надеюсь, когда вы будете читать эти строки, все 
+подобные неувязки уже будут устранены. Вы должны увидеть следующий вывод:
+[discovery] Trying to connect to API Server "192.168.77.10:6443"
+[discovery] Created cluster-info discovery client, requesting info from 
+"https://192.168.77.10:6443"
+[discovery] Requesting info from "https://192.168.77.10:6443" again to 
+validate TLS against the pinned public key
+[discovery] Cluster info signature and contents are valid and TLS certificate 
+validates against pinned roots, will use API Server "192.168.77.10:6443"
+[discovery] Successfully established connection with API Server 
+"192.168.77.10:6443"
+Данный узел присоединился к кластеру:
+* Certificate signing request was sent to master and a response was received.
+* The Kubelet was informed of the new secure connection details.
+64  Глава 2  •  Создание кластеров Kubernetes
+Чтобы убедиться в этом, выполните на ведущем узле команду kubectl get nodes.
+В некоторых ситуациях это может не сработать из-за проблем с инициализацией 
+CNI-дополнения.
+
+
+
+
+
+
+
 
 
 
