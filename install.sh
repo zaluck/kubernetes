@@ -444,41 +444,16 @@ vagrant@n1:~$ sudo kubeadm init --apiserver-advertise-address 192.168.77.10
 ----------------------------------------------------------------------------
 Дело в том, что по умолчанию не установлены инструменты из пакета cri-tools. 
 Здесь мы имеем дело с одним из передовых аспектов Kubernetes. Я создал до-
-полнительный раздел в файле playbook.yml, чтобы установить Go и cri-tools, 
-отключить раздел подкачки и исправить сетевые имена виртуальных машин 
-vagrant:
----
-- hosts: all
-  become: true
-  strategy: free
-  tasks:
-    - name: Add the longsleep repo for recent golang version
-      apt_repository: repo='ppa:longsleep/golang-backports' state=present
-    - name: update apt cache directly (apt module not reliable)
-      shell: 'apt-get update'
-      args:
-        warn: False
-    - name: Install Go
-      apt: name=golang-go state=present force=yes
-    - name: Install crictl
-      shell: 'go get github.com/kubernetes-incubator/cri-tools/cmd/crictl'
-      become_user: vagrant
-    - name: Create symlink in /usr/local/bin for crictl
-      file:
-        src: /home/vagrant/go/bin/crictl
-        dest: /usr/local/bin/crictl
-        state: link
-    - name: Set hostname properly
-62  Глава 2  •  Создание кластеров Kubernetes
-      shell: "hostname n$((1 + $(ifconfig | grep 192.168 | awk '{print $2}' |
-      tail -c 2)))"
-    - name: Turn off swap
-      shell: 'swapoff -a'
-–
+полнительный раздел в файле playbook2.yml, чтобы установить Go и cri-tools, 
+отключить раздел подкачки и исправить сетевые имена виртуальных машин vagrant:
+##############################################################################
+–--------------------------------------------------------------
 Не забудьте повторно запустить этот файл на узле n4, чтобы обновить все ВМ 
 в кластере.
 Далее приводится часть вывода при успешном запуске Kubernetes:
+
 vagrant@n1:~$ sudo kubeadm init --apiserver-advertise-address 192.168.77.10
+
 [init] Using Kubernetes version: v1.10.1
 [init] Using Authorization modes: [Node RBAC]
 [certificates] Generated ca certificate and key.
@@ -491,17 +466,22 @@ vagrant@n1:~$ sudo kubeadm init --apiserver-advertise-address 192.168.77.10
 [addons] Applied essential addon: kube-dns
 [addons] Applied essential addon: kube-proxy
 Your Kubernetes master has initialized successfully!
+
 Позже, при подключении к кластеру других узлов, вам нужно будет записать 
 куда больше информации. Чтобы начать применять кластер, запустите от имени 
 обычного пользователя следующие команды:
+
 vagrant@n1:~$ mkdir -p $HOME/.kube
 vagrant@n1:~$ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 vagrant@n1:~$ sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
 Теперь, чтобы подключить к кластеру любое количество ВМ, на каждом из его 
 узлов достаточно выполнить от имени администратора лишь одну команду. Чтобы 
 ее получить, введите kubeadm init cmmand:sudo kubeadm join -token << token>> 
 --discovery-token-ca-cert-hash <<discvery token>> -skip-prflight-cheks.
+------------------------------------------------------
 Настройка pod-сети
+---------------------
 Сеть — это важная составляющая кластера. Подам нужно как-то общаться друг 
 с другом. Для этого следует установить дополнение с поддержкой pod-сети. В ва-
 шем распоряжении есть несколько вариантов, однако они должны быть основаны 

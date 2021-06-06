@@ -1,0 +1,49 @@
+---
+#   В Kubernetes 1.10.1 это вызовет появление такого сообщения об ошибке:
+# ----------------------------------------------------------------------------
+# [init] Using Kubernetes version: v1.10.1
+# [init] Using Authorization modes: [Node RBAC]
+# [preflight] Running pre-flight checks.
+# [WARNING FileExisting-crictl]: crictl not found in system path
+# [preflight] Some fatal errors occurred:
+# [ERROR Swap]: running with swap on is not supported. Please disable swap
+# [preflight] If you know what you are doing, you can make a check non-fatal with '--ignore-preflight-errors=...'
+# ----------------------------------------------------------------------------
+# Дело в том, что по умолчанию не установлены инструменты из пакета cri-tools. 
+# Здесь мы имеем дело с одним из передовых аспектов Kubernetes. Я создал до-
+# полнительный раздел в файле playbook2.yml, чтобы установить Go и cri-tools, 
+# отключить раздел подкачки и исправить сетевые имена виртуальных машин 
+
+- hosts: all
+  become: true
+  strategy: free
+  tasks:
+    - name: Add the longsleep repo for recent golang version
+      apt_repository: repo='ppa:longsleep/golang-backports' state=present
+
+    - name: update apt cache directly (apt module not reliable)
+      shell: 'apt-get update'
+      args:
+        warn: False
+
+    - name: Install Go
+      apt: 
+        name: golang-go
+        state: present
+        force: yes
+
+    - name: Install crictl
+      shell: 'go get github.com/kubernetes-incubator/cri-tools/cmd/crictl'
+      become_user: vagrant
+
+    - name: Create symlink in /usr/local/bin for crictl
+      file:
+        src: /home/vagrant/go/bin/crictl
+        dest: /usr/local/bin/crictl
+        state: link
+
+    - name: Set hostname properly
+      shell: "hostname n$((1 + $(ifconfig | grep 192.168 | awk '{print $2}' | tail -c 2)))"
+
+    - name: Turn off swap
+      shell: 'swapoff -a'
