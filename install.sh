@@ -466,19 +466,20 @@ vagrant@n1:~$ sudo kubeadm init --apiserver-advertise-address 192.168.77.10
 [addons] Applied essential addon: kube-dns
 [addons] Applied essential addon: kube-proxy
 Your Kubernetes master has initialized successfully!
-
+----------------------------------------------------------------
 Позже, при подключении к кластеру других узлов, вам нужно будет записать 
-куда больше информации. Чтобы начать применять кластер, запустите от имени 
+куда больше информации. 
+Чтобы начать применять кластер, запустите от имени 
 обычного пользователя следующие команды:
 
 vagrant@n1:~$ mkdir -p $HOME/.kube
 vagrant@n1:~$ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 vagrant@n1:~$ sudo chown $(id -u):$(id -g) $HOME/.kube/config
-
+----------------------------------------------------------------
 Теперь, чтобы подключить к кластеру любое количество ВМ, на каждом из его 
 узлов достаточно выполнить от имени администратора лишь одну команду. Чтобы 
-ее получить, введите kubeadm init cmmand:sudo kubeadm join -token << token>> 
---discovery-token-ca-cert-hash <<discvery token>> -skip-prflight-cheks.
+ее получить, введите 
+> kubeadm init cmmand:sudo kubeadm join -token << token>> --discovery-token-ca-cert-hash <<discvery token>> -skip-prflight-cheks.
 ------------------------------------------------------
 Настройка pod-сети
 ---------------------
