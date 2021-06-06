@@ -1,0 +1,7 @@
+---
+PACKAGES:
+  - vim - htop - tmux - docker.io
+  - kubelet
+  - kubeadm
+  - kubectl
+  - kubernetes-cni

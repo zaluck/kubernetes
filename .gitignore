@@ -1,0 +1,6 @@
+.idea
+SIT
+kubernetes-in-action
+books
+.vagrant
+*.log
