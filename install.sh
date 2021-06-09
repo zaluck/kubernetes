@@ -357,8 +357,13 @@ vagrant@vagrant:~$ sudo pip install ansible
 Я использую версию 2.5.0, но самая последняя тоже должна подойти:
 vagrant@vagrant:~$ ansible --version
 ansible 2.5.0
-
----------------
+-----------------РАбочиый вариант установки----------------------
+$ sudo apt update
+$ sudo apt install software-properties-common
+$ sudo add-apt-repository --yes --update ppa:ansible/ansible
+$ sudo apt install ansible
+ansible --version
+-----------------------------------------
 Я создал каталог ansible и поместил в него три файла: hosts, vars.yml 
 и playbook.yml.
 Файл host
@@ -490,11 +495,9 @@ vagrant@n1:~$ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 kubeadm. Я предпочитаю дополнение Weave Net, которое поддерживает ресурс 
 Network Policy, но вы можете выбрать нечто другое.
 Выполните в ведущей ВМ команду:
-vagrant@n1:~$ sudo sysctl net.bridge.bridge-nf-call-iptables=1
-net.bridge.bridge-nf-call-iptables = 1vagrant@n1:~$ kubectl apply -f
-"https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 |
-tr -d '\n')"
-Создание многоузлового кластера с помощью kubeadm  63
+vagrant@n1:~$ sudo sysctl net.bridge.bridge-nf-call-iptables=1 net.bridge.bridge-nf-call-iptables = 1 
+vagrant@n1:~$ kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+
 Вы должны увидеть следующее:
 serviceaccount "weave-net" created
 clusterrole.rbac.authorization.k8s.io "weave-net" created
@@ -502,8 +505,10 @@ clusterrolebinding.rbac.authorization.k8s.io "weave-net" created
 role.rbac.authorization.k8s.io "weave-net" created
 rolebinding.rbac.authorization.k8s.io "weave-net" created
 daemonset.extensions "weave-net" created
+
 Успешность выполнения можно проверить так:
 vagrant@n1:~$ kubectl get po --all-namespaces
+
 NAMESPACE NAME READY STATUS RESTARTS AGE
 kube-system etcd-n1 1/1 Running 0 2m
 kube-system kube-apiserver-n1 1/1 Running 0 2m
@@ -512,14 +517,16 @@ kube-system kube-dns-86f4d74b45-jqctg 3/3 Running 0 3m
 kube-system kube-proxy-l54s9 1/1 Running 0 3m
 kube-system kube-scheduler-n1 1/1 Running 0 2m
 kube-system weave-net-fl7wn 2/2 Running 0 31s
+
 Последним стоит под weave-net-fl7wn, который нам и нужен. Он был запущен 
 вместе с kube-dns, это означает, что все в порядке.
 Добавление рабочих узлов
 Теперь с помощью ранее полученного токена можно добавить в кластер рабочие 
 узлы. Выполните на каждом из узлов (не забудьте sudo) следующую команду, под-
 ставив токены, которые получили при инициализации Kubernetes на ведущем узле:
-sudo kubeadm join --token "token" --discovery-token-ca-cert-hash
-"discovery token" --ignore-preflight-errors=all
+
+sudo kubeadm join --token "token" --discovery-token-ca-cert-hash "discovery token" --ignore-preflight-errors=all
+
 На момент написания этой книги (с использованием Kubernetes 1.10) некото-
 рые предварительные проверки завершались неудачно, но это всего лишь ложные 
 срабатывания. На самом деле все в порядке. Можете их пропустить, установив флаг 
@@ -537,11 +544,17 @@ validates against pinned roots, will use API Server "192.168.77.10:6443"
 Данный узел присоединился к кластеру:
 * Certificate signing request was sent to master and a response was received.
 * The Kubelet was informed of the new secure connection details.
-64  Глава 2  •  Создание кластеров Kubernetes
+
 Чтобы убедиться в этом, выполните на ведущем узле команду kubectl get nodes.
 В некоторых ситуациях это может не сработать из-за проблем с инициализацией 
 CNI-дополнения.
 
+-----------------------------
+Aнализ производительности с помощью панели управления
+Панель управления Kubernetes — это мой любимый инструмент на случай, когда 
+просто хочется узнать, что происходит в кластере
+Cначала найдем порт:
+kubectl describe service kubernetes-dashboard –namespace=kube-system | grep NodePort
 
 
 

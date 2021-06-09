@@ -23,6 +23,9 @@ hosts.each do |name, ip|
       machine.vm.network :private_network, ip: ip
       machine.vm.provider "virtualbox" do |v|
         v.name = name
+		#   v.memory = 512
+		  v.memory = 2048
+		  v.cpus = 2
       end
     end
   end
