@@ -32,9 +32,16 @@
         state: present
         force: yes
 
+    # - name: Install crictl
+    #   shell: 'go get github.com/kubernetes-incubator/cri-tools/cmd/crictl'
+    #   become_user: vagrant
     - name: Install crictl
-      shell: 'go get github.com/kubernetes-incubator/cri-tools/cmd/crictl'
+      shell: "{{item}}"
       become_user: vagrant
+      with_items:
+            - "wget https://github.com/kubernetes-sigs/cri-tools/releases/download/{{VERSION}}/crictl-{{VERSION}}-linux-amd64.tar.gz"
+            - "sudo tar zxvf crictl-{{VERSION}}-linux-amd64.tar.gz -C /usr/local/bin"
+            - "rm -f crictl-{{VERSION}}-linux-amd64.tar.gz"
 
     - name: Create symlink in /usr/local/bin for crictl
       file:
@@ -47,3 +54,4 @@
 
     - name: Turn off swap
       shell: 'swapoff -a'
+

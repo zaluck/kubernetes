@@ -8,3 +8,5 @@ PACKAGES:
   - kubeadm
   - kubectl
   - kubernetes-cni
+
+VERSION: v1.21.0

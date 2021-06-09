@@ -495,7 +495,7 @@ vagrant@n1:~$ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 kubeadm. Я предпочитаю дополнение Weave Net, которое поддерживает ресурс 
 Network Policy, но вы можете выбрать нечто другое.
 Выполните в ведущей ВМ команду:
-vagrant@n1:~$ sudo sysctl net.bridge.bridge-nf-call-iptables=1 net.bridge.bridge-nf-call-iptables = 1 
+vagrant@n1:~$ sudo sysctl net.bridge.bridge-nf-call-iptables=1 net.bridge.bridge-nf-call-iptables = 1
 vagrant@n1:~$ kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
 
 Вы должны увидеть следующее:
