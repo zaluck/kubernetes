@@ -13,9 +13,12 @@ Vagrant.configure("2") do |config|
   config.ssh.forward_agent = true
   check_guest_additions = false
   functional_vboxsf = false
+
 #   config.vm.box = "bento/ubuntu-16.04"
 #   config.vm.box = "ubuntu/trusty64"
 config.vm.box = "generic/ubuntu1604"
+# config.vm.synced_folder "d:/_WORK/_DevOps/_Kubernetes/", "/mnt"
+config.vm.synced_folder "d:/_WORK/_DevOps/_Kubernetes/", "/mnt", type: "rsync"
   
 hosts.each do |name, ip|
     config.vm.hostname = name
